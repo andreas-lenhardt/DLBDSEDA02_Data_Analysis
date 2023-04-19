@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import re
 import string
+import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer
@@ -115,6 +116,7 @@ def clean_text(df):
         )
 
     df['complaints_list'] = df['complaint'].str.split()
+    nltk.download('stopwords')
     stop_words = stopwords.words('english')
     df.loc[:, "complaints_list"] = df["complaints_list"].apply(
         lambda x: remove_stopwords(x, stop_words)
@@ -209,6 +211,7 @@ def get_topics(vector, matrix, topics_number=5, words_per_topic=10, mode=1):
 
     def get_topics_with_lda(vector, matrix, topics_number, words_per_topic):
         print(f"The following {topics_number} topics were identified by LDA:")
+        print("\n")
         model = LatentDirichletAllocation(n_components=topics_number,
                                           learning_method="online",
                                           max_iter=1,
