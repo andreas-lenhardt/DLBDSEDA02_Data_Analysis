@@ -6,15 +6,18 @@ The corpus can then be used for modeling the topics.
 
 import pandas as pd
 import numpy as np
+import gensim.corpora as corpora
 import re
 import string
 import nltk
+import wordninja
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.decomposition import LatentDirichletAllocation
+from gensim.models import CoherenceModel
 
 #%% 1 Data Loading
 def get_complaints(file="CDPH_Environmental_Complaints.csv", year=1900):
@@ -81,15 +84,21 @@ def get_complaints(file="CDPH_Environmental_Complaints.csv", year=1900):
 
 #%% 2 Text Cleaning
 def lower_complaint(complaint):
-    complaint = complaint.lower()
+    complaint = [i.lower() for i in complaint]
     return complaint
 
 def remove_punctuation(complaint):
-    complaint = complaint.translate(str.maketrans("", "", string.punctuation))
+    complaint = [i.translate(str.maketrans("", "", string.punctuation))
+                 for i in complaint]
     return complaint
 
 def remove_numbers(complaint):
-    complaint = re.sub("[0-9]", "", complaint)
+    complaint = [re.sub("[0-9]", "", i) for i in complaint]
+    return complaint
+
+def separate_words(complaint):
+    # Wordninja returns every word as a list
+    complaint = [i for i in [wordninja.split(j) for j in complaint][0]]
     return complaint
 
 def remove_stopwords(complaint, stop_words):
@@ -102,20 +111,28 @@ def lemmatize_complaints(complaint, lemmatizer):
     return complaint
 
 def clean_text(df):
+    print ("Tokenizing the data...")
+    df['complaints_list'] = df['complaint'].str.split()
+
     print ("Cleaning the data...")
-    df.loc[:, "complaint"] = df["complaint"].apply(
+    df.loc[:, "complaints_list"] = df["complaints_list"].apply(
         lambda x: lower_complaint(x)
         )
 
-    df.loc[:, "complaint"] = df["complaint"].apply(
+    df.loc[:, "complaints_list"] = df["complaints_list"].apply(
         lambda x: remove_punctuation(x)
         )
 
-    df.loc[:, "complaint"] = df["complaint"].apply(
+    df.loc[:, "complaints_list"] = df["complaints_list"].apply(
         lambda x: remove_numbers(x)
         )
 
-    df['complaints_list'] = df['complaint'].str.split()
+    # Using Wordninja to separate words that do not belong together
+    df.loc[:, "complaints_list"] = df["complaints_list"].apply(
+        lambda x: separate_words(x)
+        )
+
+    # Download the current stop words.
     nltk.download('stopwords')
     stop_words = stopwords.words('english')
     df.loc[:, "complaints_list"] = df["complaints_list"].apply(
@@ -134,7 +151,7 @@ def clean_text(df):
     return df
 
 #%% 3 Feature Extraction
-def get_feature_data(complaints, mode=2):
+def get_feature_data(complaints, mode=2, ngram_range=(1,2)):
     """Processes the text corpus using either BoW or TF-IDF.
 
     Parameters
@@ -161,7 +178,7 @@ def get_feature_data(complaints, mode=2):
 
     if mode == 1:
         print("Vectorizing the texts using BoW...")
-        vector = CountVectorizer(ngram_range=(1,1),
+        vector = CountVectorizer(ngram_range=ngram_range,
                                  max_features=5000,
                                  # min_df=0.01,
                                  # max_df=0.95
@@ -171,7 +188,7 @@ def get_feature_data(complaints, mode=2):
                               columns=vector.get_feature_names_out())
     elif mode == 2:
         print("Vectorizing the text using TF-IDF...")
-        vector = TfidfVectorizer(ngram_range=(1,1),
+        vector = TfidfVectorizer(ngram_range=ngram_range,
                                  max_features=5000,
                                  use_idf=True,
                                  smooth_idf=True,
@@ -185,7 +202,7 @@ def get_feature_data(complaints, mode=2):
     return vector, matrix, values
 
 #%% 4 Topic Modeling
-def get_topics(vector, matrix, topics_number=5, words_per_topic=10, mode=1):
+def get_topics(vector, matrix, topics_number=5, words_per_topic=10, mode=2):
     def get_topics_with_lsa(vector, matrix, topics_number, words_per_topic):
         print(f"The following {topics_number} topics were identified by LSA:")
         model = TruncatedSVD(n_components=topics_number,
@@ -233,10 +250,47 @@ def get_topics(vector, matrix, topics_number=5, words_per_topic=10, mode=1):
                 print(t[0], end=" ")
             print("\n")
 
+        return model
+
     if mode == 1:
         get_topics_with_lsa(vector, matrix, topics_number, words_per_topic)
     elif mode == 2:
-        get_topics_with_lda(vector, matrix, topics_number, words_per_topic)
+        model = get_topics_with_lda(vector, matrix, topics_number, words_per_topic)
     elif mode == 3:
         get_topics_with_lsa(vector, matrix, topics_number, words_per_topic)
         get_topics_with_lda(vector, matrix, topics_number, words_per_topic)
+
+    return model
+
+#%% 5 Coherence Score
+# Source: https://stackoverflow.com/a/75248956
+def get_coherence_score(model, df_columnm):
+    topics = model.components_
+
+    n_top_words = 20
+    texts = [[word for word in doc.split()] for doc in df_columnm]
+
+    # Create the dictionary
+    dictionary = corpora.Dictionary(texts)
+    # Create a gensim dictionary from the word count matrix
+
+    # Create a gensim corpus from the word count matrix
+    corpus = [dictionary.doc2bow(text) for text in texts]
+
+    feature_names = [dictionary[i] for i in range(len(dictionary))]
+
+    # Get the top words for each topic from the components_ attribute
+    top_words = []
+    for topic in topics:
+        top_words.append([feature_names[i] for i in
+                          topic.argsort()[:-n_top_words - 1:-1]])
+
+    coherence_model = CoherenceModel(topics=top_words,
+                                     texts=texts,
+                                     dictionary=dictionary,
+                                     coherence='c_v')
+
+    coherence = coherence_model.get_coherence()
+
+    print("\n")
+    print(f"Coherence score: {coherence}")

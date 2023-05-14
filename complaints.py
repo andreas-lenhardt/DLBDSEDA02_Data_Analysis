@@ -5,8 +5,10 @@ file_name = "CDPH_Environmental_Complaints.csv"
 year = 2020
 feature_mode = 2
 modeling_mode = 2
-topics_number = 5
+ngram_range = (1,2)
+topics_number = 3
 words_per_topic = 10
+calculate_cs = 0
 
 #%% 1 Data Loading
 df = nlp.get_complaints(file_name, year)
@@ -20,9 +22,13 @@ vector, matrix, data = nlp.get_feature_data(df["complaints_list"],
                                             )
 
 #%% 4 Topic Modeling
-nlp.get_topics(vector,
+model = nlp.get_topics(vector,
                matrix,
                topics_number=topics_number,
                words_per_topic=words_per_topic,
                mode=modeling_mode
                )
+
+#%% 5 Coherence Score
+if calculate_cs == 1 and modeling_mode == 2:
+    nlp.get_coherence_score(model, df["complaints_list"])
