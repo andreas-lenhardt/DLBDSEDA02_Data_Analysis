@@ -110,6 +110,7 @@ def lemmatize_complaints(complaint, lemmatizer):
     complaint = [lemmatizer.lemmatize(i) for i in complaint]
     return complaint
 
+    # The main function for block #2 which makes use of the above functions
 def clean_text(df):
     print ("Tokenizing the data...")
     df['complaints_list'] = df['complaint'].str.split()
@@ -132,7 +133,7 @@ def clean_text(df):
         lambda x: separate_words(x)
         )
 
-    # Download the current stop words.
+    # Download the current stop words
     nltk.download('stopwords')
     stop_words = stopwords.words('english')
     df.loc[:, "complaints_list"] = df["complaints_list"].apply(
@@ -164,6 +165,10 @@ def get_feature_data(complaints, mode=2, ngram_range=(1,2)):
         1 => Bag of Words (BoW)
         2 => Term Frequency-Inverse Document Frequency (TF-IDF)
         Default: 2.
+    ngram_range : tuple
+        Defines which n-grams are to be generated. (1,1) creates a unigram,
+        (2,2) creates a bigram, and so on. The values represent a range.
+        For instance, with (1,2) uni- AND bigrams are generated.
 
     Returns
     -------
@@ -252,6 +257,8 @@ def get_topics(vector, matrix, topics_number=5, words_per_topic=10, mode=2):
 
         return model
 
+    # Depending on the input parameter 'mode' the main function of #4 executes
+    # either the algorithm for LSA, LDA or both
     if mode == 1:
         get_topics_with_lsa(vector, matrix, topics_number, words_per_topic)
     elif mode == 2:
@@ -262,7 +269,7 @@ def get_topics(vector, matrix, topics_number=5, words_per_topic=10, mode=2):
 
     return model
 
-#%% 5 Coherence Score
+#%% 5 Topic Coherence Score
 # Source: https://stackoverflow.com/a/75248956
 def get_coherence_score(model, df_columnm):
     topics = model.components_

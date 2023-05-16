@@ -29,6 +29,6 @@ model = nlp.get_topics(vector,
                mode=modeling_mode
                )
 
-#%% 5 Coherence Score
+#%% 5 Topic Coherence Score
 if calculate_cs == 1 and modeling_mode == 2:
     nlp.get_coherence_score(model, df["complaints_list"])
