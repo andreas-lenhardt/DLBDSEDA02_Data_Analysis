@@ -28,8 +28,8 @@ There are two ways to obtain the data:
 
 In both cases, the filename of the unzipped file should be **CDPH_Environmental_Complaints.csv** and the file should be located in the same folder as the two Python files. However, the file name can be changed in the configuration section (see next section).
 
-## The Configuration for Running the Text Analysis
-![grafik](https://user-images.githubusercontent.com/75860355/233167232-bc353af8-5793-446a-9946-5fa8fcf5bc33.png)
+The Configuration for Running the Text Analysis
+## ![config](https://github.com/andreas-lenhardt/DLBDSEDA02_Data_Analysis/assets/75860355/26cb6847-8e7f-47fc-892d-ebf57018823e)
 
 1. **file_name (string)**: The filename of the file to be imported. Must be changed if it does not match the default name.
 2. **year (int)**: The source file contains complaints from 1995 onwards. The configured year only takes into account complaints from this year and later.
@@ -39,5 +39,13 @@ In both cases, the filename of the unzipped file should be **CDPH_Environmental_
 4. **modeling_mode (int)**: The method for modeling the topics:
 - LSA (1)
 - LDA (2)
-5. **topics_number (int)**: The number of topics to be discovered.
-6. **words_per_topic (int)**: The number of words linked to each topic that will be displayed.
+5. **ngram_range (tuple)**: Range of n-grams to be created.
+- (1,1) creates a unigram
+- (2,2) creates a bigram
+- (1,2) creates unigrams and bi-grams, and so on...
+6. **topics_number (int)**: The number of topics to be discovered.
+7. **words_per_topic (int)**: The number of words linked to each topic that will be displayed.
+8. **calculate_cs (int)**: If LDA is used, the topic coherence score for the last execution can be calculated. Please see section "Known Issues"
+
+## Known Issues
+- The calculation of the topic coherence score currently leads to the situation that the script does not give any response after the output of the identified topics. The "calculate_cs" setting should therefore be kept at 0. Workaround: After the topics have been output to the console, the function "nlp.get_coherence_score(model, df["complaints_list"])" in section 5 can be executed manually.
